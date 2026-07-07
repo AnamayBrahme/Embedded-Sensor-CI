@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  
   workflow_dispatch: # Allows manual trigger from GitHub UI
 
 jobs:
@@ -16,7 +17,7 @@ jobs:
       - name: Install Cppcheck
         run: sudo apt-get update && sudo apt-get install -y cppcheck
       - name: Run Security Analysis
-        run: cppcheck --enable=all --error-exitcode=1 src/
+        run: cppcheck --enable=all --suppress=missingIncludeSystem --error-exitcode=1 src/
 
   # Job 2: Build & Package (Matrix strategy)
   build:
