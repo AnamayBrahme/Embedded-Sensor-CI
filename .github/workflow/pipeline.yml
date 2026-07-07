@@ -1,0 +1,56 @@
+name: Embedded Sensor CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  # Job 1: Static Analysis (Security Guardrail)
+  security-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+      - name: Run Security Analysis
+        run: cppcheck --enable=all --error-exitcode=1 src/
+
+  # Job 2: Build & Package (Matrix strategy)
+  build:
+    needs: security-check # Only runs if security passes
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      # Efficiency: Caching build directory
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: build/
+          key: ${{ runner.os }}-build-${{ matrix.compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
+
+      - name: Install Tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake dpkg-dev
+
+      - name: Compile and Package
+        env:
+          CXX: ${{ matrix.compiler }}
+        run: |
+          mkdir -p build && cd build
+          cmake ..
+          make
+          make package
+
+      # Artifacts: Save the .deb for later download
+      - name: Upload Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sensor-package-${{ matrix.compiler }}
+          path: build/*.deb
